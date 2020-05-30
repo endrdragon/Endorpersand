@@ -811,49 +811,78 @@ class Games(commands.Cog):
     @uno.command(name='new')
     @commands.check(not_in_game_chk("unos"))
     async def uno_new(self, ctx):
+        '''
+        Make a new Uno game.
+        Use `e&uno config` to configurate game.
+        '''
         pass
 
     @uno.command(name='start')
     @commands.check(in_game_chk("unos"))
     @commands.check(paused_chk("unos"))
     async def uno_start(self, ctx):
+        '''
+        Start an Uno game after it's been created. At least two people are necessary for a game to start.
+        '''
         pass
 
     @uno.command(name='join')
     @commands.check(not_in_game_chk("unos"))
     async def uno_join(self, ctx):
+        '''
+        Join an Uno game.
+        '''
         pass
 
     @uno.command(name='leave')
     @commands.check(in_game_chk("unos"))
     async def uno_leave(self, ctx):
+        '''
+        Leave an Uno game. Cards are returned to the Draw pile.
+        '''
         pass
 
     @uno.command(name='end')
     @commands.check(in_game_chk("unos"))
     async def uno_end(self, ctx):
+        '''
+        Ends an unfinished game.
+        '''
         pass
 
     @uno.command(name='play')
     @commands.check(in_game_chk("unos"))
     @commands.check(running_chk("unos"))
     async def uno_play(self, ctx):
+        '''
+        Play a card.
+        If rank or color stacking is enabled, multiple cards can be played at once.
+        '''
         pass
 
     @uno.command(name='draw')
     @commands.check(in_game_chk("unos"))
     @commands.check(running_chk("unos"))
     async def uno_draw(self, ctx):
+        '''
+        Draw a card from the draw pile.
+        '''
         pass
 
     @uno.command(name='kick')
     @commands.check(in_game_chk("unos"))
     async def uno_kick(self, ctx):
+        '''
+        Kick someone from the game. Though I have no idea how I'm setting this up but ok.
+        '''
         pass
 
-    @uno.command(name='board')
+    @uno.command(name='board', aliases=['pile'])
     @commands.check(in_game_chk("unos"))
     async def uno_board(self, ctx):
+        '''
+        Show current discard pile.
+        '''
         pass
 
     @uno.group(name='config', aliases=['rules'])
