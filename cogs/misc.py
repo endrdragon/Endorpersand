@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 import itertools
+import inspect
+import os
 
 class Misc(commands.Cog):
     '''
@@ -32,6 +34,34 @@ class Misc(commands.Cog):
         Command with a cooldown.
         '''
         await ctx.send('🥶')
+
+    # quietly taking this code from HTBote
+    @commands.command(aliases=['code'])
+    async def source(self, ctx, *, command: str = None):
+        """Displays the source for a command."""
+        source_url = 'https://github.com/endrdragon/Endorpersand'
+        if command is None:
+            return await ctx.send('View source code at: ' + source_url)
+
+        obj = self.bot.get_command(command.replace('.', ' '))
+        if obj is None:
+            return await ctx.send('Could not find command.\nView source code at: ' + source_url)
+
+        # since we found the command we're looking for, presumably anyway, let's
+        # try to access the code itself
+        src = obj.callback.__code__
+        lines, firstlineno = inspect.getsourcelines(src)
+        if not obj.callback.__module__.startswith('discord'):
+            # not a built-in command
+            location = os.path.relpath(src.co_filename).replace('\\', '/')
+            source_url = f'{source_url}/tree/master'
+        else:
+            location = obj.callback.__module__.replace('.', '/') + '.py'
+            source_url = 'https://github.com/Rapptz/discord.py/blob/rewrite'
+
+        final_url = f'<{source_url}/{location}#L{firstlineno}-{firstlineno + len(lines) - 1}>'
+        await ctx.send(final_url)
+
 
 class EndorpersandHelp(commands.MinimalHelpCommand):
     # Most of the code is taken from discord.py source code

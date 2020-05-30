@@ -28,7 +28,7 @@ async def check(ctx, err):
     if isinstance(err, l := commands.DisabledCommand): # i don't have this
         await ctx.send(f'{ctx.prefix}{ctx.command} is disabled. Unfortunate.')
         return l
-    if isinstance(err, l := commands.CommandOnCooldown): # or this
+    if isinstance(err, l := commands.CommandOnCooldown):
         await ctx.message.add_reaction('🛑')
         await sleep(err.retry_after)
         await ctx.message.remove_reaction('🛑', ctx.bot.user)
