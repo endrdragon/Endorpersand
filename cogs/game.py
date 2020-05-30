@@ -415,6 +415,13 @@ class Uno(Board):
     Board type: Queue of cards.
     last played -> [1R, 2R, 2B, 4B, ...] <- first played
     '''
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.draw_stack = kwargs.pop("draw_stack", True)
+        self.jump_in = kwargs.pop("jump_in", False)
+        self.seven_o = kwargs.pop("seven_o", False)
+        self.color_stack = kwargs.pop("color_stack", False)
+        self.rank_stack = kwargs.pop("rank_stack", False)
 
 class Games(commands.Cog):
     '''
@@ -774,6 +781,7 @@ class Games(commands.Cog):
     ### UNO ###
     # Function prefix: uno_, unoc_
     @commands.group()
+    @commands.guild_only() # this game does not have an ai setting so is guild_only
     async def uno(self, ctx):
         '''
         Play an Uno game.
@@ -791,6 +799,7 @@ class Games(commands.Cog):
         uno play [card / cards (if stacking same color cards is allowed)]
         uno draw
         uno kick
+        uno board
         uno config
         '''
 
@@ -800,34 +809,56 @@ class Games(commands.Cog):
             await ctx.send_help('uno')
 
     @uno.command(name='new')
+    @commands.check(not_in_game_chk("unos"))
     async def uno_new(self, ctx):
         pass
 
     @uno.command(name='start')
+    @commands.check(in_game_chk("unos"))
+    @commands.check(paused_chk("unos"))
     async def uno_start(self, ctx):
         pass
 
     @uno.command(name='join')
+    @commands.check(not_in_game_chk("unos"))
     async def uno_join(self, ctx):
         pass
 
     @uno.command(name='leave')
+    @commands.check(in_game_chk("unos"))
     async def uno_leave(self, ctx):
         pass
 
     @uno.command(name='end')
+    @commands.check(in_game_chk("unos"))
     async def uno_end(self, ctx):
         pass
 
     @uno.command(name='play')
+    @commands.check(in_game_chk("unos"))
+    @commands.check(running_chk("unos"))
     async def uno_play(self, ctx):
         pass
 
     @uno.command(name='draw')
+    @commands.check(in_game_chk("unos"))
+    @commands.check(running_chk("unos"))
     async def uno_draw(self, ctx):
         pass
 
+    @uno.command(name='kick')
+    @commands.check(in_game_chk("unos"))
+    async def uno_kick(self, ctx):
+        pass
+
+    @uno.command(name='board')
+    @commands.check(in_game_chk("mancalas"))
+    async def uno_board(self, ctx):
+        pass
+
     @uno.group(name='config', aliases=['rules'])
+    @commands.check(in_game_chk("unos"))
+    @commands.check(paused_chk("unos"))
     async def uno_config(self, ctx):
         '''
         Enable/disable house rules before starting.
@@ -852,6 +883,7 @@ class Games(commands.Cog):
         Change the current turn of the game.
         '''
         pass
+
     @uno_config.command(name='draw_stack')
     async def unoc_draw_stack(self, ctx, opt: bool):
         '''
@@ -861,6 +893,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         pass
+
     @uno_config.command(name='jump_in', aliases=['cut'])
     async def unoc_jump_in(self, ctx, opt: bool):
         '''
@@ -870,6 +903,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         pass
+
     @uno_config.command(name='seven-o', aliases=['seven_o'])
     async def unoc_seven_o(self, ctx, opt: bool):
         '''
@@ -880,6 +914,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         pass
+
     @uno_config.command(name='color_stack')
     async def unoc_color_stack(self, ctx, opt: bool):
         '''
@@ -887,6 +922,7 @@ class Games(commands.Cog):
             - If enabled, cards of the same color can be played at once. (e&uno play card1 card2 card3...)
         '''
         pass
+
     @uno_config.command(name='rank_stack')
     async def unoc_rank_stack(self, ctx, opt: bool):
         '''
@@ -894,7 +930,6 @@ class Games(commands.Cog):
             - If enabled, cards of the same rank can be played at once. (e&uno play card1 card2 card3...)
         '''
         pass
-    
 
 
 def setup(bot):
