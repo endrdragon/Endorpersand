@@ -776,7 +776,7 @@ class Games(commands.Cog):
         uno join
         uno leave
         uno end
-        uno play [card / cards (if stacking is allowed)]
+        uno play [card / cards (if stacking same color cards is allowed)]
         uno draw
         uno config
         '''
@@ -785,6 +785,39 @@ class Games(commands.Cog):
             self.unos[guild_or_dm(ctx).id] = []
         if ctx.invoked_subcommand == None:
             await ctx.send_help('uno')
+
+    @uno.command(name='new')
+    async def uno_new(self, ctx):
+        pass
+    
+    @uno.command(name='start')
+    async def uno_start(self, ctx):
+        pass
+    
+    @uno.command(name='join')
+    async def uno_join(self, ctx):
+        pass
+    
+    @uno.command(name='leave')
+    async def uno_leave(self, ctx):
+        pass
+    
+    @uno.command(name='end')
+    async def uno_end(self, ctx):
+        pass
+    
+    @uno.command(name='play')
+    async def uno_play(self, ctx):
+        pass
+    
+    @uno.command(name='draw')
+    async def uno_draw(self, ctx):
+        pass
+    
+    @uno.command(name='config')
+    async def uno_config(self, ctx):
+        pass
+    
 
 def setup(bot):
     cog = Games(bot)
