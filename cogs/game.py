@@ -852,7 +852,7 @@ class Games(commands.Cog):
         pass
 
     @uno.command(name='board')
-    @commands.check(in_game_chk("mancalas"))
+    @commands.check(in_game_chk("unos"))
     async def uno_board(self, ctx):
         pass
 
