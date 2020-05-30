@@ -43,7 +43,7 @@ class Misc(commands.Cog):
         if command is None:
             return await ctx.send('View source code at: ' + source_url)
 
-        obj = self.bot.get_command(command.replace('.', ' '))
+        obj = self.bot.get_command(command)
         if obj is None:
             return await ctx.send('Could not find command.\nView source code at: ' + source_url)
 

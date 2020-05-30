@@ -8,6 +8,7 @@ from asyncio import sleep
 ai = 'AI' # there's really no reason to do this but w/e
 
 # what am i doing
+# mancala checks
 def mch_in_game(ctx):
     b = ctx.bot.cogs['Games'].mc_in_game(guild_or_dm(ctx), ctx.author)
     if not b: raise commands.CheckFailure('You are not in a game!')
@@ -30,6 +31,7 @@ class Board:
 
         self.players = kwargs.pop('players', [])
         self.board = kwargs.pop('board', [])
+        self.running = kwargs.pop('running', False)
         self.bot = kwargs.pop('bot')
 
         if not isinstance(self.players, list):
@@ -70,7 +72,6 @@ class Mancala(Board):
     '''
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.running = kwargs.pop('running', False)
         self.turn = kwargs.pop('turn', 0)
         self.mobile = kwargs.pop('mobile', False)
         self.special = kwargs.pop('special', None)
@@ -398,6 +399,12 @@ class Mancala(Board):
             if alpha >= beta: break
         return (minev, bact)
 
+class Uno(Board):
+    '''
+    Board type: Queue of cards.
+    last played -> [1R, 2R, 2B, 4B, ...] <- first played
+    '''
+
 class Games(commands.Cog):
     '''
     Bot games
@@ -410,8 +417,12 @@ class Games(commands.Cog):
             # ]
 
         }
+        self.unos = {
+
+        }
         self.dirs = {
-            'mancalas': {'dict': self.mancalas, 'type': Mancala}
+            'mancalas': {'dict': self.mancalas, 'type': Mancala},
+            'unos': {'dict': self.unos, 'type': Uno},
         }
         self.load()
 
@@ -456,17 +467,6 @@ class Games(commands.Cog):
             __Additional rules:__
                 - If your last pebble lands on your store, you get another move.
                 - If your last pebble lands on an empty slot on your side of the board, you "capture" the opponent's slot. (This means the pebble you just placed and all of the pebbles on the opposing side are taken and added to your store.)
-        '''
-        '''
-        v mancala new [pvp|avp|pva] [board size = 6]
-        v mancala join [user id]
-        v mancala start
-        v mancala pause
-        v mancala board
-          mancala play [slot]
-        v mancala config [board]
-        v mancala leave
-        v mancala end
         '''
 
         if guild_or_dm(ctx).id not in self.mancalas: 
@@ -680,26 +680,28 @@ class Games(commands.Cog):
         '''
         Change the configuration of the board.
         '''
-        '''
-        mancala config board [
-            [0, 1, 2, 3, ..., store], # pl 0
-            [0, 1, 2, 3, ..., store] # pl 1
-        ]
-        mancala config turn [0|1]
-        '''
         if ctx.invoked_subcommand == None:
-            await ctx.send_help('mancala config')
+            mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+            configs = {
+                "board": mancala.board,
+                "turn": mancala.turn,
+                "ai": ai in mancala.players,
+                "mobile": mancala.mobile,
+            }
+            config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
+            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the settings.'
+            await ctx.send(config_str)
 
     @mc_config.command(name='board')
     async def mcf_board(self, ctx, *, board = None):
         '''
         Edit the board.
-        If no arg is provided, the internal representation of the board is sent.
+        Board is of form [[slot 0, slot 1, slot 2, ..., slot n, store], [slot 0, slot 1, slot 2, ..., slot n, store]].
         '''
         mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
 
         if board == None:
-            await ctx.send(mancala.board)
+            await ctx.send_help('mancala config board')
             return
         board_arr = json.loads(board)
         if len(board_arr) != 2: raise commands.BadArgument('Board can only have two sides.')
@@ -757,6 +759,33 @@ class Games(commands.Cog):
         mancala.mobile = arg
         await self.mc_board(ctx)
 
+    ### UNO ###
+    # Function prefix: uno_, 
+    @commands.group()
+    async def uno(self, ctx):
+        '''
+        Play an Uno game.
+        EVERYTHING HERE IS WIP!
+
+        __How to play Uno:__
+            - 
+        '''
+        '''
+        uno new
+        uno start
+        uno join
+        uno leave
+        uno end
+        uno play [card / cards (if stacking is allowed)]
+        uno draw
+        uno config
+        '''
+
+        if guild_or_dm(ctx).id not in self.unos: 
+            self.unos[guild_or_dm(ctx).id] = []
+        if ctx.invoked_subcommand == None:
+            await ctx.send_help('uno')
+
 def setup(bot):
     cog = Games(bot)
     bot.add_cog(cog)
@@ -767,3 +796,5 @@ def setup(bot):
     override_signature(cog.mcf_ai, '<true|false>')
     override_signature(cog.mcf_mobile, '<true|false>')
     override_signature(cog.mcf_turn, '<0|1>')
+
+    override_signature(cog.uno, '<subcmd> [...]')
