@@ -10,19 +10,19 @@ ai = 'AI' # there's really no reason to do this but w/e
 # what am i doing
 # mancala checks
 def mch_in_game(ctx):
-    b = ctx.bot.cogs['Games'].mc_in_game(guild_or_dm(ctx), ctx.author)
+    b = ctx.bot.cogs['Games'].in_game(guild_or_dm(ctx), ctx.author, "mancalas")
     if not b: raise commands.CheckFailure('You are not in a game!')
     return True
 def mch_not_in_game(ctx):
-    b = not ctx.bot.cogs['Games'].mc_in_game(guild_or_dm(ctx), ctx.author)
+    b = not ctx.bot.cogs['Games'].in_game(guild_or_dm(ctx), ctx.author, "mancalas")
     if not b: raise commands.CheckFailure('You are already in a game!')
     return True
 def mch_running(ctx):
-    b = ctx.bot.cogs['Games'].mc_curr_game(guild_or_dm(ctx), ctx.author).running
+    b = ctx.bot.cogs['Games'].curr_game(guild_or_dm(ctx), ctx.author, "mancalas").running
     if not b: raise commands.CheckFailure('Game is not currently running!')
     return True
 def mch_paused(ctx):
-    b = not ctx.bot.cogs['Games'].mc_curr_game(guild_or_dm(ctx), ctx.author).running
+    b = not ctx.bot.cogs['Games'].curr_game(guild_or_dm(ctx), ctx.author, "mancalas").running
     if not b: raise commands.CheckFailure('Game must be paused to use this command!')
     return True
 
@@ -451,6 +451,22 @@ class Games(commands.Cog):
             except FileNotFoundError as e:
                 ANSI.print('yellow', 'Warning: ' + str(e) + f'\nA new {dirc}.json file will be generated.')
     
+    def in_game(self, guild, player, game):
+        '''
+        Checks if a player is in some game of type [game] in guild [guild]
+        '''
+        dct = getattr(self, game)
+        game_ids = sum((game.players for game in dct[guild.id]), start=[])
+        if player.id in game_ids:
+            return True
+        return False
+
+    def curr_game(self, guild, player, game):
+        '''
+        Returns game of type [game] player is currently playing in a guild
+        '''
+        dct = getattr(self, game)
+        return next((game for game in dct[guild.id] if player.id in game.players), None)
     ### MANCALA ###
     # Function prefix: mc_, mcf_, mch_
 
@@ -473,27 +489,12 @@ class Games(commands.Cog):
             self.mancalas[guild_or_dm(ctx).id] = []
         if ctx.invoked_subcommand == None:
             await ctx.send_help('mancala')
-    
-    def mc_in_game(self, guild, player):
-        '''
-        Checks if player is in a game of Mancala
-        '''
-        game_ids = sum((game.players for game in self.mancalas[guild.id]), start=[])
-        if player.id in game_ids:
-            return True
-        return False
-
-    def mc_curr_game(self, guild, player):
-        '''
-        Returns game player is currently playing
-        '''
-        return next((game for game in self.mancalas[guild.id] if player.id in game.players), None)
 
     async def mc_finish(self, ctx, additional_message = None):
         """
         Completes game. Triggerable via e&mancala end or by a terminal condition in e&mancala board
         """
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
 
         msg = f'Final board: ' + mancala.display(True)
         if additional_message != None: msg = additional_message + '\n' + msg
@@ -535,7 +536,7 @@ class Games(commands.Cog):
     @commands.check(mch_in_game)
     @commands.check(mch_paused)
     async def mc_start(self, ctx):
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         if len(mancala.players) == 1:
             await ctx.send(f'Game cannot start without two players. Type `{ctx.prefix}mancala config ai true` to add an AI player.')
             return
@@ -550,7 +551,7 @@ class Games(commands.Cog):
         '''
         Pause the game.
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         mancala.running = False
         await ctx.send('Game paused!')
         await self.mc_board(ctx)
@@ -561,7 +562,7 @@ class Games(commands.Cog):
         '''
         Load board.
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         def gen_player_disp():
             str = ''
             if len(mancala.players) == 1:
@@ -611,7 +612,7 @@ class Games(commands.Cog):
         '''
         Select a slot to play.
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
 
         if mancala.players[mancala.turn] != ctx.author.id:
             await ctx.send("It's not your turn!")
@@ -630,9 +631,9 @@ class Games(commands.Cog):
         '''
         Join someone's Mancala game
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), user)
+        mancala = self.curr_game(guild_or_dm(ctx), user, "mancalas")
         # arg in game check
-        if not self.mc_in_game(guild_or_dm(ctx), user) or mancala.running or len(mancala.players) > 1:
+        if not self.in_game(guild_or_dm(ctx), user, "mancalas") or mancala.running or len(mancala.players) > 1:
             await ctx.send('User is not starting a game!')
             return
         mancala.players.append(ctx.author.id)
@@ -641,7 +642,7 @@ class Games(commands.Cog):
     @mancala.command(name='leave')
     @commands.check(mch_in_game)
     async def mc_leave(self, ctx):
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
 
         if ai in mancala.players:
             await self.mc_end(ctx)
@@ -654,7 +655,7 @@ class Games(commands.Cog):
     @mancala.command(name='end')
     @commands.check(mch_in_game)
     async def mc_end(self, ctx):
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         if ai not in mancala.players and ctx.author.id != mancala.players[0]:
             await ctx.send('You are not the owner of this game! Leaving game...')
             await self.mc_leave(ctx)
@@ -669,7 +670,7 @@ class Games(commands.Cog):
         """
         Owner only: Skips the current player's move
         """
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         mancala.turn = 1 - mancala.turn
         await self.mc_board(ctx)
 
@@ -681,7 +682,7 @@ class Games(commands.Cog):
         Change the configuration of the board.
         '''
         if ctx.invoked_subcommand == None:
-            mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+            mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
             configs = {
                 "board": mancala.board,
                 "turn": mancala.turn,
@@ -698,7 +699,7 @@ class Games(commands.Cog):
         Edit the board.
         Board is of form [[slot 0, slot 1, slot 2, ..., slot n, store], [slot 0, slot 1, slot 2, ..., slot n, store]].
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
 
         if board == None:
             await ctx.send_help('mancala config board')
@@ -720,11 +721,11 @@ class Games(commands.Cog):
         '''
         Change the game's turn.
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
 
         if turn not in (0, 1):
             raise commands.BadArgument('Turn number can only be set to 0 or 1.')
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         mancala.turn = turn
         await ctx.send(f"Set game's turn to **{mancala.player_names(turn)}**")
 
@@ -733,7 +734,7 @@ class Games(commands.Cog):
         '''
         Add or remove AI player from game
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
 
         if ai_player:
             # two players in game
@@ -755,7 +756,7 @@ class Games(commands.Cog):
         '''
         If toggled on, the board is rotated for better viewing on mobile.
         '''
-        mancala = self.mc_curr_game(guild_or_dm(ctx), ctx.author)
+        mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         mancala.mobile = arg
         await self.mc_board(ctx)
 
@@ -789,35 +790,49 @@ class Games(commands.Cog):
     @uno.command(name='new')
     async def uno_new(self, ctx):
         pass
-    
+
     @uno.command(name='start')
     async def uno_start(self, ctx):
         pass
-    
+
     @uno.command(name='join')
     async def uno_join(self, ctx):
         pass
-    
+
     @uno.command(name='leave')
     async def uno_leave(self, ctx):
         pass
-    
+
     @uno.command(name='end')
     async def uno_end(self, ctx):
         pass
-    
+
     @uno.command(name='play')
     async def uno_play(self, ctx):
         pass
-    
+
     @uno.command(name='draw')
     async def uno_draw(self, ctx):
         pass
-    
-    @uno.command(name='config')
+
+    @uno.group(name='config')
     async def uno_config(self, ctx):
+        '''
+        Edit game rules before starting.
+        '''
+        if ctx.invoked_subcommand == None:
+            mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
+            configs = {
+                "board": mancala.board,
+                "turn": mancala.turn,
+                "ai": ai in mancala.players,
+                "mobile": mancala.mobile,
+            }
+            config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
+            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the settings.'
+            await ctx.send(config_str)
         pass
-    
+
 
 def setup(bot):
     cog = Games(bot)
