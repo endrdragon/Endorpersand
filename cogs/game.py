@@ -701,7 +701,7 @@ class Games(commands.Cog):
                 "mobile": mancala.mobile,
             }
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
-            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the settings.'
+            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the desired setting.'
             await ctx.send(config_str)
 
     @mc_config.command(name='board')
@@ -772,7 +772,7 @@ class Games(commands.Cog):
         await self.mc_board(ctx)
 
     ### UNO ###
-    # Function prefix: uno_, 
+    # Function prefix: uno_, unoc_
     @commands.group()
     async def uno(self, ctx):
         '''
@@ -790,6 +790,7 @@ class Games(commands.Cog):
         uno end
         uno play [card / cards (if stacking same color cards is allowed)]
         uno draw
+        uno kick
         uno config
         '''
 
@@ -826,20 +827,74 @@ class Games(commands.Cog):
     async def uno_draw(self, ctx):
         pass
 
-    @uno.group(name='config')
+    @uno.group(name='config', aliases=['rules'])
     async def uno_config(self, ctx):
         '''
-        Edit game rules before starting.
+        Enable/disable house rules before starting.
         '''
         if ctx.invoked_subcommand == None:
             uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
             configs = {
                 "turn": uno.turn,
+                "draw_stack": uno.draw_stack,
+                "jump_in": uno.jump_in,
+                "seven-o": uno.seven_o,
+                "color_stack": uno.color_stack,
+                "rank_stack": uno.rank_stack,
             }
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
-            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the settings.'
+            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the desired setting.'
             await ctx.send(config_str)
+    
+    @uno_config.command(name='turn')
+    async def unoc_turn(self, ctx, turn: int):
+        '''
+        Change the current turn of the game.
+        '''
         pass
+    @uno_config.command(name='draw_stack')
+    async def unoc_draw_stack(self, ctx, opt: bool):
+        '''
+        Enable/disable draw stacking. Enabled by default.
+            - When forced to draw cards due to a +2 or +4 card, you can place a +2 or +4 to avoid drawing and pass the burden onto the next player.
+
+        - Considered a house rule by Hasbro
+        '''
+        pass
+    @uno_config.command(name='jump_in', aliases=['cut'])
+    async def unoc_jump_in(self, ctx, opt: bool):
+        '''
+        Enable/disable jump ins. Disabled by default.
+            - If the card on the top of the discard pile matches the rank and color of a card in your hand, that card can be played, skipping all players before you.
+
+        - Considered a house rule by Hasbro
+        '''
+        pass
+    @uno_config.command(name='seven-o', aliases=['seven_o'])
+    async def unoc_seven_o(self, ctx, opt: bool):
+        '''
+        Enable/disable special abilities of rank 0 and 7. Disabled by default.
+            - Every time a 0 is played, all players pass their hands to the next player in direction of play.
+            - Every time a 7 is played, the player who played the 7 card must trade their hand with another player of their choice. 
+
+        - Considered a house rule by Hasbro
+        '''
+        pass
+    @uno_config.command(name='color_stack')
+    async def unoc_color_stack(self, ctx, opt: bool):
+        '''
+        Enable/disable color stacking. Disabled by default.
+            - If enabled, cards of the same color can be played at once. (e&uno play card1 card2 card3...)
+        '''
+        pass
+    @uno_config.command(name='rank_stack')
+    async def unoc_rank_stack(self, ctx, opt: bool):
+        '''
+        Enable/disable rank stacking. Disabled by default.
+            - If enabled, cards of the same rank can be played at once. (e&uno play card1 card2 card3...)
+        '''
+        pass
+    
 
 
 def setup(bot):
@@ -854,3 +909,9 @@ def setup(bot):
     override_signature(cog.mcf_turn, '<0|1>')
 
     override_signature(cog.uno, '<subcmd> [...]')
+    override_signature(cog.unoc_turn, '<true|false>')
+    override_signature(cog.unoc_draw_stack, '<true|false>')
+    override_signature(cog.unoc_jump_in, '<true|false>')
+    override_signature(cog.unoc_seven_o, '<true|false>')
+    override_signature(cog.unoc_color_stack, '<true|false>')
+    override_signature(cog.unoc_rank_stack, '<true|false>')
