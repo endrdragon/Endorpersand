@@ -418,7 +418,11 @@ class Uno(Board):
         super().__init__(**kwargs)
         self.rules = kwargs.pop("rules", {"draw_stack": True, "jump_in": False, "seven_o": False, "color_stack": False, "rank_stack": False})
         self.hand_size = kwargs.pop("hand_size", 7)
-        self.hands = {}
+        self.hands = kwargs.pop("hands", {})
+
+        self.ranks = ['*' + str(rank) for rank in range(9)] + ['*' + rank for rank in ['T', 'S', 'R']] + ['WF', ' W'] # *9 represents a colored 9, no * represents colorless card
+        self.colors = [('R', '🟥'), ('G','🟩'), ('B','🟦'), ('Y','🟨')] # (color, display name)
+        self.distro = []
 
     def serial(self):
         return {
@@ -429,6 +433,9 @@ class Uno(Board):
             "hand_size": self.hand_size,
             "hands": self.hands,
             }
+
+    def start(self):
+        self.running = True
 
 
 class Games(commands.Cog):
@@ -891,6 +898,7 @@ class Games(commands.Cog):
 
     @uno.command(name='board', aliases=['pile'])
     @commands.check(in_game_chk("unos"))
+    @commands.check(running_chk("unos"))
     async def uno_board(self, ctx):
         '''
         Show current discard pile.
