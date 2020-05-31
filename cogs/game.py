@@ -419,36 +419,32 @@ class Uno(Board):
     '''
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.rules = kwargs.pop("rules", {"draw_stack": True, "jump_in": False, "seven_o": False, "color_stack": False, "rank_stack": False})
-        self.hand_size = kwargs.pop("hand_size", 7)
+        self.config = kwargs.pop("config", {"hand_size": 7, "unicode": True, "draw_stack": True, "jump_in": False, "seven_o": False, "color_stack": False, "rank_stack": False})
         self.hands = kwargs.pop("hands", {})
+        self.draw_pile = kwargs.pop("draw_pile", []) # [bottom, ..., top]
+        self.discard_pile = kwargs.pop("discard_pile", []) # [oldest, ..., newest]
 
-        if "draw_pile" in kwargs:
-            self.draw_pile = kwargs.pop("draw_pile")
-        else:
-            # ranks (rank, # of cards in color (if colorless, total # of cards in deck))
-            # *9 represents a colored 9, no * represents colorless card
-            ranks = [('*0', 1)] + [('*' + str(rank), 2) for rank in range(1, 10)] + [('*' + rank, 2) for rank in ['T', 'S', 'R']] + [('WF', 4), ('W', 4)]
-            self.colors = [('R', '🟥'), ('G','🟩'), ('B','🟦'), ('Y','🟨')] # (color, display name)
+        # ranks (rank, # of cards in color (if colorless, total # of cards in deck))
+        # *9 represents a colored 9, no * represents colorless card
+        ranks = [('*0', 1)] + [('*' + str(rank), 2) for rank in range(1, 10)] + [('*' + rank, 2) for rank in ['T', 'S', 'R']] + [('WF', 4), ('W', 4)]
+        self.colors = {'R': '🟥', 'G': '🟩', 'B': '🟦', 'Y': '🟨'} # (color, display name)
 
-            # gen distribution for cards
-            self.distro = Counter()
-            for r, count in ranks:
-                if not r.startswith('*'):
-                    self.distro[r] = count
-                    continue
-                for color, _ in self.colors:
-                    self.distro[color + r[1:]] = count
+        # gen distribution for cards
+        self.distro = Counter()
+        for r, count in ranks:
+            if not r.startswith('*'):
+                self.distro[r] = count
+                continue
+            for color in self.colors:
+                self.distro[color + r[1:]] = count
         
-        self.discard_pile = kwargs.pop("discard_pile", [])
 
     def serial(self):
         return {
             "players": self.players, 
             "board": self.board, 
             "running": self.running,
-            "rules": self.rules, 
-            "hand_size": self.hand_size,
+            "config": self.config,
             "hands": self.hands,
             "draw_pile": self.draw_pile,
             "discard_pile": self.discard_pile,
@@ -457,16 +453,14 @@ class Uno(Board):
     def start(self):
         self.running = True
         # create deck and shuffle
-        total_cards = len(self.players) * self.hand_size + 20 # enough for each person + at least 20 more
+        total_cards = len(self.players) * self.config["hand_size"] + 20 # enough for each person + at least 20 more
         self.draw_pile = math.ceil( total_cards / len([*self.distro.elements()]) ) * [*self.distro.elements()]
         random.shuffle(self.draw_pile)
         # distribute cards
         for player in self.players:
-            self.hands[player] = self.draw_pile[:self.hand_size]
-            del self.draw_pile[:self.hand_size]
-        self.discard_pile.append( self.draw_pile.pop(0) )
-
-
+            self.hands[player] = self.draw_pile[-self.config["hand_size"]:]
+            del self.draw_pile[-self.config["hand_size"]:]
+        self.discard_pile.append( self.draw_pile.pop() )
 
 class Games(commands.Cog):
     '''
@@ -874,7 +868,7 @@ class Games(commands.Cog):
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
         uno.start()
-        await ctx.send(str(uno.draw_pile))
+        await self.uno_board(ctx)
 
 
     @uno.command(name='join')
@@ -937,6 +931,8 @@ class Games(commands.Cog):
         '''
         Show current discard pile.
         '''
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        disp_dc = [*reversed(card for card in uno.discard_pile)]
 
     @uno.group(name='config', aliases=['rules'])
     @commands.check(in_game_chk("unos"))
@@ -948,12 +944,13 @@ class Games(commands.Cog):
         if ctx.invoked_subcommand == None:
             uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
             configs = {
-                "hand": uno.hand_size,
-                "draw_stack": uno.rules["draw_stack"],
-                "jump_in": uno.rules["jump_in"],
-                "seven-o": uno.rules["seven_o"],
-                "color_stack": uno.rules["color_stack"],
-                "rank_stack": uno.rules["rank_stack"],
+                "hand": uno.config["hand_size"],
+                "unicode": uno.config["unicode"],
+                "draw_stack": uno.config["draw_stack"],
+                "jump_in": uno.config["jump_in"],
+                "seven-o": uno.config["seven_o"],
+                "color_stack": uno.config["color_stack"],
+                "rank_stack": uno.config["rank_stack"],
             }
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
             config_str += f'Type `{ctx.prefix}{self.uno_config} <setting> <new value>` to change the desired setting.'
@@ -967,7 +964,16 @@ class Games(commands.Cog):
         if hand_size <= 0 or hand_size >= 51:
             raise commands.BadArgument('Size of hands at start must be between 1 and 50 cards.')
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.hand_size = hand_size
+        uno.config["hand_size"] = hand_size
+        await self.uno_config(ctx)
+
+    @uno_config.command(name='unicode')
+    async def unoc_unicode(self, ctx, opt: bool):
+        '''
+        Enable/disable unicode characters (`🟥🟩🟦🟨`). Enabled by default.
+        '''
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.config["unicode"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='draw_stack')
@@ -979,7 +985,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.rules["draw_stack"] = opt
+        uno.config["draw_stack"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='jump_in', aliases=['cut'])
@@ -991,7 +997,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.rules["jump_in"] = opt
+        uno.config["jump_in"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='seven-o', aliases=['seven_o'])
@@ -1004,7 +1010,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.rules["seven_o"] = opt
+        uno.config["seven_o"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='color_stack')
@@ -1014,7 +1020,7 @@ class Games(commands.Cog):
             - If enabled, cards of the same color can be played at once. (e&uno play card1 card2 card3...)
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.rules["color_stack"] = opt
+        uno.config["color_stack"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='rank_stack')
@@ -1024,7 +1030,7 @@ class Games(commands.Cog):
             - If enabled, cards of the same rank can be played at once. (e&uno play card1 card2 card3...)
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.rules["rank_stack"] = opt
+        uno.config["rank_stack"] = opt
         await self.uno_config(ctx)
 
 
