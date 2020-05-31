@@ -880,6 +880,9 @@ class Games(commands.Cog):
         uno.start()
         await self.uno_board(ctx)
 
+        for user_id, hand in uno.hands.items():
+            await self.bot.get_user( int(user_id) ).send('**Your hand:**```' + ' '.join(uno.display_card(card) for card in hand) + '```')
+
 
     @uno.command(name='join')
     @commands.check(not_in_game_chk("unos"))
