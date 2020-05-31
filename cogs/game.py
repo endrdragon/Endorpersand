@@ -416,13 +416,7 @@ class Uno(Board):
     '''
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.rules = {
-            "draw_stack": kwargs.pop("draw_stack", True),
-            "jump_in": kwargs.pop("jump_in", False),
-            "seven_o": kwargs.pop("seven_o", False),
-            "color_stack": kwargs.pop("color_stack", False),
-            "rank_stack": kwargs.pop("rank_stack", False),
-        }
+        self.rules = kwargs.pop("rules", {"draw_stack": True, "jump_in": False, "seven_o": False, "color_stack": False, "rank_stack": False})
         self.hand_size = kwargs.pop("hand_size", 7)
         self.hands = {}
 
@@ -432,6 +426,7 @@ class Uno(Board):
             "board": self.board, 
             "running": self.running,
             "rules": self.rules, 
+            "hand_size": self.hand_size,
             "hands": self.hands,
             }
 
@@ -720,7 +715,7 @@ class Games(commands.Cog):
                 "mobile": mancala.mobile,
             }
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
-            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the desired setting.'
+            config_str += f'Type `{ctx.prefix}{self.mc_config} <setting> <new value>` to change the desired setting.'
             await ctx.send(config_str)
 
     @mc_config.command(name='board')
@@ -919,7 +914,7 @@ class Games(commands.Cog):
                 "rank_stack": uno.rules["rank_stack"],
             }
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
-            config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the desired setting.'
+            config_str += f'Type `{ctx.prefix}{self.uno_config} <setting> <new value>` to change the desired setting.'
             await ctx.send(config_str)
 
     @uno_config.command(name='hand')
