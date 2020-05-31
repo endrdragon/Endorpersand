@@ -164,7 +164,6 @@ class Mancala(Board):
                         va = self.actions(False)
                         movestr = (' ').join((str(i) if i in va else ' ').rjust(c, ' ') for i in range(s))
                         sl.append(' ' * c + '> ' + movestr + ' <')
-                    pass
                 else:
                     sl.append('### PAUSED ###')
             # abbrs and arrow markers
@@ -422,6 +421,7 @@ class Uno(Board):
         self.seven_o = kwargs.pop("seven_o", False)
         self.color_stack = kwargs.pop("color_stack", False)
         self.rank_stack = kwargs.pop("rank_stack", False)
+        self.hand_size = kwargs.pop("hand_size", 7)
 
 class Games(commands.Cog):
     '''
@@ -556,10 +556,10 @@ class Games(commands.Cog):
     async def mc_start(self, ctx):
         mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
         if len(mancala.players) == 1:
-            await ctx.send(f'Game cannot start without two players. Type `{ctx.prefix}mancala config ai true` to add an AI player.')
+            await ctx.send(f'Game cannot start without two players. Type `{ctx.prefix}{self.mcf_ai} true` to add an AI player.')
             return
         mancala.running = True
-        await ctx.send(f'Game started! Type `{ctx.prefix}mancala play [0-{mancala.size - 1}]` to play.')
+        await ctx.send(f'Game started! Type `{ctx.prefix}{self.mc_play} [0-{mancala.size - 1}]` to play.')
         await self.mc_board(ctx)
     
     @mancala.command(name='pause')
@@ -599,9 +599,9 @@ class Games(commands.Cog):
 
         if not mancala.running:
             if len(mancala.players) == 1:
-                await ctx.send(gen_player_disp() + mancala.display() + f'\nType `{ctx.prefix}mancala join [user]` to join!')
+                await ctx.send(gen_player_disp() + mancala.display() + f'\nType `{ctx.prefix}{self.mc_join} [user]` to join!')
                 return
-            await ctx.send(gen_player_disp() + mancala.display() + f'\nType `{ctx.prefix}mancala start` to begin!')
+            await ctx.send(gen_player_disp() + mancala.display() + f'\nType `{ctx.prefix}{self.mc_start}` to begin!')
             return
         
         await ctx.send(gen_player_disp() + mancala.display())
@@ -640,7 +640,6 @@ class Games(commands.Cog):
             raise commands.BadArgument("You can't play that slot!")
         mancala.replace(mancala.result([slot]))
         await self.mc_board(ctx)
-        pass
 
     @mancala.command(name='join')
     @commands.check(not_in_game_chk("mancalas"))
@@ -810,12 +809,16 @@ class Games(commands.Cog):
 
     @uno.command(name='new')
     @commands.check(not_in_game_chk("unos"))
-    async def uno_new(self, ctx):
+    async def uno_new(self, ctx, hand_size: int = 7):
         '''
         Make a new Uno game.
         Use `e&uno config` to configurate game.
         '''
-        pass
+        if hand_size < 1:
+            raise commands.BadArgument('Size of hand at start must be greater than 0.')
+        uno = Uno(players=[ctx.author.id], hand_size=hand_size, bot=self.bot)
+        self.unos[guild_or_dm(ctx).id].append(uno)
+        await ctx.send(f'New Uno game created!\nType `{ctx.prefix}{self.uno_config}` to configurate game.\nType `{ctx.prefix}{self.uno_join} @{ctx.author}` to join this game.\nType `{ctx.prefix}{self.uno_start}` to start.')
 
     @uno.command(name='start')
     @commands.check(in_game_chk("unos"))
@@ -824,7 +827,6 @@ class Games(commands.Cog):
         '''
         Start an Uno game after it's been created. At least two people are necessary for a game to start.
         '''
-        pass
 
     @uno.command(name='join')
     @commands.check(not_in_game_chk("unos"))
@@ -832,7 +834,6 @@ class Games(commands.Cog):
         '''
         Join an Uno game.
         '''
-        pass
 
     @uno.command(name='leave')
     @commands.check(in_game_chk("unos"))
@@ -840,7 +841,6 @@ class Games(commands.Cog):
         '''
         Leave an Uno game. Cards are returned to the Draw pile.
         '''
-        pass
 
     @uno.command(name='end')
     @commands.check(in_game_chk("unos"))
@@ -848,7 +848,14 @@ class Games(commands.Cog):
         '''
         Ends an unfinished game.
         '''
-        pass
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        if ctx.author.id != uno.players[0]:
+            await ctx.send('You are not the owner of this game! Leaving game...')
+            await self.uno_leave(ctx)
+            return
+
+        self.unos[guild_or_dm(ctx).id].remove(uno)
+        await ctx.send('Game ended.')
 
     @uno.command(name='play')
     @commands.check(in_game_chk("unos"))
@@ -858,7 +865,6 @@ class Games(commands.Cog):
         Play a card.
         If rank or color stacking is enabled, multiple cards can be played at once.
         '''
-        pass
 
     @uno.command(name='draw')
     @commands.check(in_game_chk("unos"))
@@ -867,7 +873,6 @@ class Games(commands.Cog):
         '''
         Draw a card from the draw pile.
         '''
-        pass
 
     @uno.command(name='kick')
     @commands.check(in_game_chk("unos"))
@@ -875,7 +880,6 @@ class Games(commands.Cog):
         '''
         Kick someone from the game. Though I have no idea how I'm setting this up but ok.
         '''
-        pass
 
     @uno.command(name='board', aliases=['pile'])
     @commands.check(in_game_chk("unos"))
@@ -883,7 +887,6 @@ class Games(commands.Cog):
         '''
         Show current discard pile.
         '''
-        pass
 
     @uno.group(name='config', aliases=['rules'])
     @commands.check(in_game_chk("unos"))
@@ -896,6 +899,7 @@ class Games(commands.Cog):
             uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
             configs = {
                 "turn": uno.turn,
+                "hand": uno.hand_size,
                 "draw_stack": uno.draw_stack,
                 "jump_in": uno.jump_in,
                 "seven-o": uno.seven_o,
@@ -911,7 +915,18 @@ class Games(commands.Cog):
         '''
         Change the current turn of the game.
         '''
-        pass
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.turn = turn
+        await self.uno_config(ctx)
+
+    @uno_config.command(name='hand')
+    async def unoc_hand(self, ctx, hand_size: int):
+        '''
+        Change the initial size of the hands.
+        '''
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.hand_size = hand_size
+        await self.uno_config(ctx)
 
     @uno_config.command(name='draw_stack')
     async def unoc_draw_stack(self, ctx, opt: bool):
@@ -921,7 +936,9 @@ class Games(commands.Cog):
 
         - Considered a house rule by Hasbro
         '''
-        pass
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.draw_stack = opt
+        await self.uno_config(ctx)
 
     @uno_config.command(name='jump_in', aliases=['cut'])
     async def unoc_jump_in(self, ctx, opt: bool):
@@ -931,7 +948,9 @@ class Games(commands.Cog):
 
         - Considered a house rule by Hasbro
         '''
-        pass
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.jump_in = opt
+        await self.uno_config(ctx)
 
     @uno_config.command(name='seven-o', aliases=['seven_o'])
     async def unoc_seven_o(self, ctx, opt: bool):
@@ -942,7 +961,9 @@ class Games(commands.Cog):
 
         - Considered a house rule by Hasbro
         '''
-        pass
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.seven_o = opt
+        await self.uno_config(ctx)
 
     @uno_config.command(name='color_stack')
     async def unoc_color_stack(self, ctx, opt: bool):
@@ -950,7 +971,9 @@ class Games(commands.Cog):
         Enable/disable color stacking. Disabled by default.
             - If enabled, cards of the same color can be played at once. (e&uno play card1 card2 card3...)
         '''
-        pass
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.color_stack = opt
+        await self.uno_config(ctx)
 
     @uno_config.command(name='rank_stack')
     async def unoc_rank_stack(self, ctx, opt: bool):
@@ -958,7 +981,9 @@ class Games(commands.Cog):
         Enable/disable rank stacking. Disabled by default.
             - If enabled, cards of the same rank can be played at once. (e&uno play card1 card2 card3...)
         '''
-        pass
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.rank_stack = opt
+        await self.uno_config(ctx)
 
 
 def setup(bot):
@@ -973,7 +998,6 @@ def setup(bot):
     override_signature(cog.mcf_turn, '<0|1>')
 
     override_signature(cog.uno, '<subcmd> [...]')
-    override_signature(cog.unoc_turn, '<true|false>')
     override_signature(cog.unoc_draw_stack, '<true|false>')
     override_signature(cog.unoc_jump_in, '<true|false>')
     override_signature(cog.unoc_seven_o, '<true|false>')
