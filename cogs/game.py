@@ -462,6 +462,15 @@ class Uno(Board):
             del self.draw_pile[-self.config["hand_size"]:]
         self.discard_pile.append( self.draw_pile.pop() )
 
+    def display_card(self, card):
+        '''
+        Returns display version of card.
+        '''
+        if card[0] not in self.colors:
+            return card.rjust(2, ' ')
+        else:
+            return self.colors[card[0]] + card[1]
+
 class Games(commands.Cog):
     '''
     Bot games
@@ -838,6 +847,7 @@ class Games(commands.Cog):
         uno draw
         uno kick
         uno board
+        uno hand
         uno config
         '''
 
@@ -950,16 +960,20 @@ class Games(commands.Cog):
         Show current discard pile.
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        if uno.config["unicode"]:
-            display_pile = [(uno.colors[card[0]] + card[1:]) if (card[0] in uno.colors) else (card) for card in uno.discard_pile]
-        else:
-            display_pile = [*uno.discard_pile]
+        display_pile = [uno.display_card(card) for card in uno.discard_pile]
         display_pile.reverse()
 
         top, rest = display_pile[0], display_pile[1:]
         disp_str = f"**Top card**: `{top.rjust(2, ' ')}`\n"
         disp_str += f"**Rest of pile**:```{' '.join(card.rjust(2, ' ') for card in rest)}```" if len(rest) > 0 else ''
         await ctx.send(disp_str)
+
+    @uno.command(name='hand')
+    @commands.check(in_game_chk("unos"))
+    @commands.check(running_chk("unos"))
+    async def uno_hand(self, ctx):
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        await ctx.author.send('**Your hand:**```' + ' '.join(uno.display_card(card) for card in uno.hands[str(ctx.author.id)]) + '```')
 
     @uno.group(name='config', aliases=['rules'])
     @commands.check(in_game_chk("unos"))
