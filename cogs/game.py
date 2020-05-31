@@ -5,6 +5,8 @@ from scripts.util import ANSI, override_signature, guild_or_dm
 import json
 from math import inf
 from asyncio import sleep
+from collections import Counter
+import random
 ai = 'AI' # there's really no reason to do this but w/e
 
 # what am i doing
@@ -420,9 +422,19 @@ class Uno(Board):
         self.hand_size = kwargs.pop("hand_size", 7)
         self.hands = kwargs.pop("hands", {})
 
-        self.ranks = ['*' + str(rank) for rank in range(9)] + ['*' + rank for rank in ['T', 'S', 'R']] + ['WF', ' W'] # *9 represents a colored 9, no * represents colorless card
+        # ranks (rank, # of cards in color (if colorless, total # of cards in deck))
+        # *9 represents a colored 9, no * represents colorless card
+        ranks = [('*0', 1)] + [('*' + str(rank), 2) for rank in range(1, 10)] + [('*' + rank, 2) for rank in ['T', 'S', 'R']] + [('WF', 4), ('W', 4)]
         self.colors = [('R', '🟥'), ('G','🟩'), ('B','🟦'), ('Y','🟨')] # (color, display name)
-        self.distro = []
+        # gen distribution for cards
+        self.distro = Counter()
+        for r, count in ranks:
+            if not r.startswith('*'):
+                self.distro[r] = count
+                continue
+            for color, _ in self.colors:
+                self.distro[color + r[1:]] = count
+                continue
 
     def serial(self):
         return {
@@ -435,7 +447,9 @@ class Uno(Board):
             }
 
     def start(self):
-        self.running = True
+        #self.running = True
+        self.draw_pile = [*self.distro.elements()]
+        random.shuffle(self.draw_pile)
 
 
 class Games(commands.Cog):
@@ -822,7 +836,7 @@ class Games(commands.Cog):
         if ctx.invoked_subcommand == None:
             await ctx.send_help('uno')
 
-    @uno.command(name='new')
+    @uno.command(name='new', aliases=['create', 'make'])
     @commands.check(not_in_game_chk("unos"))
     async def uno_new(self, ctx, hand_size: int = 7):
         '''
@@ -842,10 +856,14 @@ class Games(commands.Cog):
         '''
         Start an Uno game after it's been created. At least two people are necessary for a game to start.
         '''
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
+        uno.start()
+        await ctx.send(str(uno.draw_pile))
+
 
     @uno.command(name='join')
     @commands.check(not_in_game_chk("unos"))
-    async def uno_join(self, ctx):
+    async def uno_join(self, ctx, user: discord.User):
         '''
         Join an Uno game.
         '''
