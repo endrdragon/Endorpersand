@@ -822,8 +822,8 @@ class Games(commands.Cog):
         Make a new Uno game.
         Use `e&uno config` to configurate game.
         '''
-        if hand_size < 1:
-            raise commands.BadArgument('Size of hand at start must be greater than 0.')
+        if hand_size <= 0 or hand_size >= 51:
+            raise commands.BadArgument('Size of hands at start must be between 1 and 50 cards.')
         uno = Uno(players=[ctx.author.id], hand_size=hand_size, bot=self.bot)
         self.unos[guild_or_dm(ctx).id].append(uno)
         await ctx.send(f'New Uno game created!\nType `{ctx.prefix}{self.uno_config}` to configurate game.\nType `{ctx.prefix}{self.uno_join} @{ctx.author}` to join this game.\nType `{ctx.prefix}{self.uno_start}` to start.')
@@ -922,6 +922,8 @@ class Games(commands.Cog):
         '''
         Change the initial size of the hands.
         '''
+        if hand_size <= 0 or hand_size >= 51:
+            raise commands.BadArgument('Size of hands at start must be between 1 and 50 cards.')
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
         uno.hand_size = hand_size
         await self.uno_config(ctx)
