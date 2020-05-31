@@ -416,12 +416,25 @@ class Uno(Board):
     '''
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.draw_stack = kwargs.pop("draw_stack", True)
-        self.jump_in = kwargs.pop("jump_in", False)
-        self.seven_o = kwargs.pop("seven_o", False)
-        self.color_stack = kwargs.pop("color_stack", False)
-        self.rank_stack = kwargs.pop("rank_stack", False)
+        self.rules = {
+            "draw_stack": kwargs.pop("draw_stack", True),
+            "jump_in": kwargs.pop("jump_in", False),
+            "seven_o": kwargs.pop("seven_o", False),
+            "color_stack": kwargs.pop("color_stack", False),
+            "rank_stack": kwargs.pop("rank_stack", False),
+        }
         self.hand_size = kwargs.pop("hand_size", 7)
+        self.hands = {}
+
+    def serial(self):
+        return {
+            "players": self.players, 
+            "board": self.board, 
+            "running": self.running,
+            "rules": self.rules, 
+            "hands": self.hands,
+            }
+
 
 class Games(commands.Cog):
     '''
@@ -899,11 +912,11 @@ class Games(commands.Cog):
             uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
             configs = {
                 "hand": uno.hand_size,
-                "draw_stack": uno.draw_stack,
-                "jump_in": uno.jump_in,
-                "seven-o": uno.seven_o,
-                "color_stack": uno.color_stack,
-                "rank_stack": uno.rank_stack,
+                "draw_stack": uno.rules["draw_stack"],
+                "jump_in": uno.rules["jump_in"],
+                "seven-o": uno.rules["seven_o"],
+                "color_stack": uno.rules["color_stack"],
+                "rank_stack": uno.rules["rank_stack"],
             }
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
             config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the desired setting.'
@@ -927,7 +940,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.draw_stack = opt
+        uno.rules["draw_stack"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='jump_in', aliases=['cut'])
@@ -939,7 +952,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.jump_in = opt
+        uno.rules["jump_in"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='seven-o', aliases=['seven_o'])
@@ -952,7 +965,7 @@ class Games(commands.Cog):
         - Considered a house rule by Hasbro
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.seven_o = opt
+        uno.rules["seven_o"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='color_stack')
@@ -962,7 +975,7 @@ class Games(commands.Cog):
             - If enabled, cards of the same color can be played at once. (e&uno play card1 card2 card3...)
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.color_stack = opt
+        uno.rules["color_stack"] = opt
         await self.uno_config(ctx)
 
     @uno_config.command(name='rank_stack')
@@ -972,7 +985,7 @@ class Games(commands.Cog):
             - If enabled, cards of the same rank can be played at once. (e&uno play card1 card2 card3...)
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.rank_stack = opt
+        uno.rules["rank_stack"] = opt
         await self.uno_config(ctx)
 
 
