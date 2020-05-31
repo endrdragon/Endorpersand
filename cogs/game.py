@@ -419,8 +419,8 @@ class Uno(Board):
     '''
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.config = kwargs.pop("config", {"hand_size": 7, "unicode": True, "draw_stack": True, "jump_in": False, "seven_o": False, "color_stack": False, "rank_stack": False})
-        self.hands = kwargs.pop("hands", {})
+        self.config = kwargs.pop("config", {"hand_size": 7, "unicode": True, "draw_stack": True, "jump_in": False, "seven_o": False, "rank_stack": False})
+        self.hands = {int(key): val for key, val in kwargs.pop("hands", {}).items()}
         self.draw_pile = kwargs.pop("draw_pile", []) # [bottom, ..., top]
         self.discard_pile = kwargs.pop("discard_pile", []) # [oldest, ..., newest]
 
@@ -438,7 +438,6 @@ class Uno(Board):
             for color in self.colors:
                 self.distro[color + r[1:]] = count
         
-
     def serial(self):
         return {
             "players": self.players, 
@@ -934,7 +933,7 @@ class Games(commands.Cog):
     @uno.command(name='play')
     @commands.check(in_game_chk("unos"))
     @commands.check(running_chk("unos"))
-    async def uno_play(self, ctx):
+    async def uno_play(self, ctx, *moves):
         '''
         Play a card.
         If rank or color stacking is enabled, multiple cards can be played at once.
@@ -975,8 +974,11 @@ class Games(commands.Cog):
     @commands.check(in_game_chk("unos"))
     @commands.check(running_chk("unos"))
     async def uno_hand(self, ctx):
+        '''
+        Show your current hand.
+        '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        await ctx.author.send('**Your hand:**```' + ' '.join(uno.display_card(card) for card in uno.hands[str(ctx.author.id)]) + '```')
+        await ctx.author.send('**Your hand:**```' + ' '.join(uno.display_card(card) for card in uno.hands[ctx.author.id]) + '```')
 
     @uno.group(name='config', aliases=['rules'])
     @commands.check(in_game_chk("unos"))
@@ -993,7 +995,6 @@ class Games(commands.Cog):
                 "draw_stack": uno.config["draw_stack"],
                 "jump_in": uno.config["jump_in"],
                 "seven-o": uno.config["seven_o"],
-                "color_stack": uno.config["color_stack"],
                 "rank_stack": uno.config["rank_stack"],
             }
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
@@ -1057,16 +1058,6 @@ class Games(commands.Cog):
         uno.config["seven_o"] = opt
         await self.uno_config(ctx)
 
-    @uno_config.command(name='color_stack')
-    async def unoc_color_stack(self, ctx, opt: bool):
-        '''
-        Enable/disable color stacking. Disabled by default.
-            - If enabled, cards of the same color can be played at once. (e&uno play card1 card2 card3...)
-        '''
-        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.config["color_stack"] = opt
-        await self.uno_config(ctx)
-
     @uno_config.command(name='rank_stack')
     async def unoc_rank_stack(self, ctx, opt: bool):
         '''
@@ -1090,8 +1081,8 @@ def setup(bot):
     override_signature(cog.mcf_turn, '<0|1>')
 
     override_signature(cog.uno, '<subcmd> [...]')
+    override_signature(cog.unoc_unicode, '<true|false>')
     override_signature(cog.unoc_draw_stack, '<true|false>')
     override_signature(cog.unoc_jump_in, '<true|false>')
     override_signature(cog.unoc_seven_o, '<true|false>')
-    override_signature(cog.unoc_color_stack, '<true|false>')
     override_signature(cog.unoc_rank_stack, '<true|false>')
