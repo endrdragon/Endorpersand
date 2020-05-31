@@ -700,7 +700,7 @@ class Games(commands.Cog):
     async def mc_leave(self, ctx):
         mancala = self.curr_game(guild_or_dm(ctx), ctx.author, "mancalas")
 
-        if ai in mancala.players:
+        if ai in mancala.players or len(mancala.players) == 1:
             await self.mc_end(ctx)
             return
             
@@ -877,6 +877,13 @@ class Games(commands.Cog):
         '''
         Join an Uno game.
         '''
+        uno = self.curr_game(guild_or_dm(ctx), user, "unos")
+        # arg in game check
+        if not self.in_game(guild_or_dm(ctx), user, "unos") or uno.running:
+            await ctx.send('User is not starting a game!')
+            return
+        uno.players.append(ctx.author.id)
+        await ctx.send(f"Joined {discord.utils.escape_mentions(user.name)}'s game!")
 
     @uno.command(name='leave')
     @commands.check(in_game_chk("unos"))
@@ -884,6 +891,17 @@ class Games(commands.Cog):
         '''
         Leave an Uno game. Cards are returned to the Draw pile.
         '''
+        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos") 
+
+        if len(uno.players) == 1:
+            await self.uno_end(ctx)
+            return
+
+        uno.players.remove(ctx.author.id)
+        hand = uno.hands.pop(ctx.author.id)
+        uno.draw_pile += hand
+        random.shuffle(uno.draw_pile)
+        await ctx.send('You have left the game. Your hand has been reshuffled into the draw pile.')
 
     @uno.command(name='end')
     @commands.check(in_game_chk("unos"))
@@ -942,8 +960,6 @@ class Games(commands.Cog):
         disp_str = f"**Top card**: `{top.rjust(2, ' ')}`\n"
         disp_str += f"**Rest of pile**:```{' '.join(card.rjust(2, ' ') for card in rest)}```" if len(rest) > 0 else ''
         await ctx.send(disp_str)
-        
-
 
     @uno.group(name='config', aliases=['rules'])
     @commands.check(in_game_chk("unos"))
