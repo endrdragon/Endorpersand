@@ -932,7 +932,18 @@ class Games(commands.Cog):
         Show current discard pile.
         '''
         uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        disp_dc = [*reversed(card for card in uno.discard_pile)]
+        if uno.config["unicode"]:
+            display_pile = [(uno.colors[card[0]] + card[1:]) if (card[0] in uno.colors) else (card) for card in uno.discard_pile]
+        else:
+            display_pile = [*uno.discard_pile]
+        display_pile.reverse()
+
+        top, rest = display_pile[0], display_pile[1:]
+        disp_str = f"**Top card**: `{top.rjust(2, ' ')}`\n"
+        disp_str += f"**Rest of pile**:```{' '.join(card.rjust(2, ' ') for card in rest)}```" if len(rest) > 0 else ''
+        await ctx.send(disp_str)
+        
+
 
     @uno.group(name='config', aliases=['rules'])
     @commands.check(in_game_chk("unos"))
