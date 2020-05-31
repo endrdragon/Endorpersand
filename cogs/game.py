@@ -7,6 +7,7 @@ from math import inf
 from asyncio import sleep
 from collections import Counter
 import random
+import math
 ai = 'AI' # there's really no reason to do this but w/e
 
 # what am i doing
@@ -422,19 +423,24 @@ class Uno(Board):
         self.hand_size = kwargs.pop("hand_size", 7)
         self.hands = kwargs.pop("hands", {})
 
-        # ranks (rank, # of cards in color (if colorless, total # of cards in deck))
-        # *9 represents a colored 9, no * represents colorless card
-        ranks = [('*0', 1)] + [('*' + str(rank), 2) for rank in range(1, 10)] + [('*' + rank, 2) for rank in ['T', 'S', 'R']] + [('WF', 4), ('W', 4)]
-        self.colors = [('R', '🟥'), ('G','🟩'), ('B','🟦'), ('Y','🟨')] # (color, display name)
-        # gen distribution for cards
-        self.distro = Counter()
-        for r, count in ranks:
-            if not r.startswith('*'):
-                self.distro[r] = count
-                continue
-            for color, _ in self.colors:
-                self.distro[color + r[1:]] = count
-                continue
+        if "draw_pile" in kwargs:
+            self.draw_pile = kwargs.pop("draw_pile")
+        else:
+            # ranks (rank, # of cards in color (if colorless, total # of cards in deck))
+            # *9 represents a colored 9, no * represents colorless card
+            ranks = [('*0', 1)] + [('*' + str(rank), 2) for rank in range(1, 10)] + [('*' + rank, 2) for rank in ['T', 'S', 'R']] + [('WF', 4), ('W', 4)]
+            self.colors = [('R', '🟥'), ('G','🟩'), ('B','🟦'), ('Y','🟨')] # (color, display name)
+
+            # gen distribution for cards
+            self.distro = Counter()
+            for r, count in ranks:
+                if not r.startswith('*'):
+                    self.distro[r] = count
+                    continue
+                for color, _ in self.colors:
+                    self.distro[color + r[1:]] = count
+        
+        self.discard_pile = kwargs.pop("discard_pile", [])
 
     def serial(self):
         return {
@@ -444,12 +450,22 @@ class Uno(Board):
             "rules": self.rules, 
             "hand_size": self.hand_size,
             "hands": self.hands,
+            "draw_pile": self.draw_pile,
+            "discard_pile": self.discard_pile,
             }
 
     def start(self):
-        #self.running = True
-        self.draw_pile = [*self.distro.elements()]
+        self.running = True
+        # create deck and shuffle
+        total_cards = len(self.players) * self.hand_size + 20 # enough for each person + at least 20 more
+        self.draw_pile = math.ceil( total_cards / len([*self.distro.elements()]) ) * [*self.distro.elements()]
         random.shuffle(self.draw_pile)
+        # distribute cards
+        for player in self.players:
+            self.hands[player] = self.draw_pile[:self.hand_size]
+            del self.draw_pile[:self.hand_size]
+        self.discard_pile.append( self.draw_pile.pop(0) )
+
 
 
 class Games(commands.Cog):
