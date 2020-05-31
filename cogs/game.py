@@ -898,7 +898,6 @@ class Games(commands.Cog):
         if ctx.invoked_subcommand == None:
             uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
             configs = {
-                "turn": uno.turn,
                 "hand": uno.hand_size,
                 "draw_stack": uno.draw_stack,
                 "jump_in": uno.jump_in,
@@ -909,15 +908,6 @@ class Games(commands.Cog):
             config_str = '```py\n' + '\n'.join([f'{key}: {str(val)}' for key, val in configs.items()]) + '```'
             config_str += f'Type `{ctx.prefix}{ctx.command} <setting> <new value>` to change the desired setting.'
             await ctx.send(config_str)
-    
-    @uno_config.command(name='turn')
-    async def unoc_turn(self, ctx, turn: int):
-        '''
-        Change the current turn of the game.
-        '''
-        uno = self.curr_game(guild_or_dm(ctx), ctx.author, "unos")
-        uno.turn = turn
-        await self.uno_config(ctx)
 
     @uno_config.command(name='hand')
     async def unoc_hand(self, ctx, hand_size: int):
